@@ -1,0 +1,98 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: OpenClaw Bedrock AgentCore Runtime with Public Endpoint
+
+Parameters:
+
+  RuntimeName:
+    Type: String
+    Default: openclaw-runtime
+
+  EndpointName:
+    Type: String
+    Default: openclaw-public
+
+  ArtifactBucket:
+    Type: String
+
+  ArtifactPrefix:
+    Type: String
+    Default: runtime/
+
+Resources:
+
+  OpenClawRuntimeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: OpenClawAgentCoreRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - bedrock-agentcore.amazonaws.com
+            Action:
+              - sts:AssumeRole
+
+      Policies:
+        - PolicyName: OpenClawRuntimePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource: "*"
+
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource: "*"
+
+              - Effect: Allow
+                Action:
+                  - logs:*
+                Resource: "*"
+
+  OpenClawRuntime:
+    Type: AWS::BedrockAgentCore::Runtime
+    Properties:
+
+      AgentRuntimeName: !Ref RuntimeName
+
+      RoleArn: !GetAtt OpenClawRuntimeRole.Arn
+
+      AgentRuntimeArtifact:
+        S3Location:
+          Bucket: !Ref ArtifactBucket
+          Prefix: !Ref ArtifactPrefix
+
+      ProtocolConfiguration:
+        ServerProtocol: HTTP
+
+  OpenClawEndpoint:
+    Type: AWS::BedrockAgentCore::RuntimeEndpoint
+    Properties:
+
+      AgentRuntimeId: !Ref OpenClawRuntime
+
+      Name: !Ref EndpointName
+
+      Description: Public OpenClaw Runtime Endpoint
+
+Outputs:
+
+  RuntimeId:
+    Value: !Ref OpenClawRuntime
+
+  EndpointId:
+    Value: !Ref OpenClawEndpoint
+
+  RuntimeArn:
+    Value: !GetAtt OpenClawRuntime.AgentRuntimeArn
+
+  EndpointArn:
+    Value: !GetAtt OpenClawEndpoint.AgentRuntimeEndpointArn
